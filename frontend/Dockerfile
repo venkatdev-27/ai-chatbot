@@ -1,17 +1,16 @@
-FROM node:20
-
-# App directory
+# ---------- Build stage ----------
+FROM node:20 AS build
 WORKDIR /app
-
-# Install dependencies
 COPY package*.json ./
 RUN npm install
-
-# Copy frontend source
 COPY . .
+RUN npm run build
 
-# Expose Vite port
+# ---------- Production stage ----------
+FROM node:20
+WORKDIR /app
+RUN npm install -g serve
+COPY --from=build /app/dist ./dist
+
 EXPOSE 5173
-
-# Start Vite dev server
-CMD ["npm", "run", "dev"]
+CMD ["serve", "-s", "dist", "-l", "5173"]
