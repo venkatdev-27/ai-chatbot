@@ -67,6 +67,8 @@ Start the backend server:
 npm run dev
 # or
 node server.js
+or 
+nodemon server.js
 ```
 
 ### 3. Frontend Setup
