@@ -1,15 +1,23 @@
-# ---------- Build stage ----------
-FROM node:20 AS build
+# -------- BUILD STAGE --------
+FROM node:18-alpine AS build
+
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm install
+
+# 👇 THIS LINE NEEDS THE FILE TO EXIST
+COPY .env.production .env
+
 COPY . .
 RUN npm run build
 
-# ---------- Production stage ----------
-FROM node:20
+# -------- PRODUCTION STAGE --------
+FROM node:18-alpine
+
 WORKDIR /app
 RUN npm install -g serve
+
 COPY --from=build /app/dist ./dist
 
 EXPOSE 5173
