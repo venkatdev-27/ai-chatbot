@@ -11,16 +11,17 @@ const ChatWindow = ({ messages = [], currentUser }) => {
 
   /* ---------------- MESSAGE OWNERSHIP ---------------- */
   const isOwnMessage = (msg) => {
-    if (!currentUser?._id) return false;
+    // 1️⃣ Always force AI/Model to the left
+    if (msg.role === "ai" || msg.role === "model") return false;
 
-    // AI messages always on the left
-    if (msg.role === "ai") return false;
+    if (!currentUser?._id) return false;
 
     const senderId =
       typeof msg.sender === "string"
         ? msg.sender
         : msg.sender?._id;
 
+    // 2️⃣ Otherwise, check ID match
     return String(senderId) === String(currentUser._id);
   };
 

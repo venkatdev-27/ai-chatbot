@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const MessageBubble = ({ message, isOwn }) => {
   // ✅ Correct AI detection
-  const isAi = message.role === "ai";
+  const isAi = message.role === "ai" || message.role === "model";
 
   // ✅ Safe userna
   const senderName = isAi
@@ -35,7 +35,7 @@ const MessageBubble = ({ message, isOwn }) => {
           className={`shadow-sm overflow-hidden ${isOwn
             ? "bg-primary text-white rounded-2xl rounded-tr-none px-4 py-3"
             : isAi
-              ? "bg-transparent text-white pl-0 px-4 py-3" // Plain white, no background
+              ? "bg-transparent text-white px-0 py-1" // completely plain
               : "bg-dark-input text-text-primary rounded-2xl rounded-tl-none border border-dark-border px-4 py-3"
             }`}
         >
