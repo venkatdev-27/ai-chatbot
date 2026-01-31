@@ -1,52 +1,75 @@
 import api from "./axiosInstance";
 
-// 🔹 Store auth data safely
+/* =========================
+   🔹 Helper: store auth data
+========================= */
 const setAuthData = (data) => {
-  if (!data?.token) return;
+  if (!data || !data.token) {
+    throw new Error("Invalid auth response");
+  }
 
   localStorage.setItem("token", data.token);
   localStorage.setItem("user", JSON.stringify(data));
 };
 
-// 🔹 Register
+/* =========================
+   🔹 Register
+========================= */
 const register = async (userData) => {
   try {
-    const { data } = await api.post("/auth/register", userData);
-    setAuthData(data);
-    return data;
+    const response = await api.post("/auth/register", userData);
+
+    setAuthData(response.data);
+    return response.data;
   } catch (error) {
     throw new Error(
-      error?.response?.data?.message || "Registration failed"
+      error?.response?.data?.message ||
+      error?.message ||
+      "Registration failed"
     );
   }
 };
 
-// 🔹 Login
+/* =========================
+   🔹 Login
+========================= */
 const login = async (userData) => {
   try {
-    const { data } = await api.post("/auth/login", userData);
-    setAuthData(data);
-    return data;
+    const response = await api.post("/auth/login", userData);
+
+    setAuthData(response.data);
+    return response.data;
   } catch (error) {
     throw new Error(
-      error?.response?.data?.message || "Login failed"
+      error?.response?.data?.message ||
+      error?.message ||
+      "Login failed"
     );
   }
 };
 
-// 🔹 Logout
+/* =========================
+   🔹 Logout
+========================= */
 const logout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
 };
 
-// 🔹 Get current user safely
+/* =========================
+   🔹 Get current user
+========================= */
 const getCurrentUser = () => {
   try {
     const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
-  } catch {
-    logout(); // 🔹 auto-clean corrupted storage
+    const token = localStorage.getItem("token");
+
+    if (!user || !token) return null;
+
+    return JSON.parse(user);
+  } catch (error) {
+    // 🔴 Corrupted storage → cleanup
+    logout();
     return null;
   }
 };
