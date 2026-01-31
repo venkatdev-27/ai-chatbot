@@ -5,73 +5,77 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // only for app boot
   const [error, setError] = useState(null);
 
-  // 🔹 Load user from localStorage on app start
+  /* ---------------- LOAD USER ON APP START ---------------- */
   useEffect(() => {
     try {
       const storedUser = authService.getCurrentUser();
-      if (storedUser) {
-        setUser(storedUser);
+      if (storedUser?.token) {
+        setUser(storedUser); // ✅ must include token
       }
     } catch (err) {
-      console.error("Failed to load user:", err);
+      console.error("Auth load failed:", err);
       setUser(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // 🔹 Login
-  const login = useCallback(async (userData) => {
-    setLoading(true);
+  /* ---------------- LOGIN ---------------- */
+  const login = useCallback(async (credentials) => {
     setError(null);
 
     try {
-      const loggedInUser = await authService.login(userData);
-      setUser(loggedInUser);
-      return loggedInUser;
+      const data = await authService.login(credentials);
+
+      // ✅ Ensure consistent shape
+      if (!data?.token) {
+        throw new Error("Invalid login response");
+      }
+
+      setUser(data);
+      return data;
     } catch (err) {
-      const message = err?.message || "Login failed";
-      setError(message);
-      throw err; // 🔹 let component handle navigation
-    } finally {
-      setLoading(false);
+      setError(err?.message || "Login failed");
+      throw err;
     }
   }, []);
 
-  // 🔹 Register
-  const register = useCallback(async (userData) => {
-    setLoading(true);
+  /* ---------------- REGISTER ---------------- */
+  const register = useCallback(async (payload) => {
     setError(null);
 
     try {
-      const registeredUser = await authService.register(userData);
-      setUser(registeredUser);
-      return registeredUser;
+      const data = await authService.register(payload);
+
+      if (!data?.token) {
+        throw new Error("Invalid register response");
+      }
+
+      setUser(data);
+      return data;
     } catch (err) {
-      const message = err?.message || "Registration failed";
-      setError(message);
-      throw err; // 🔹 IMPORTANT: do not wrap again
-    } finally {
-      setLoading(false);
+      setError(err?.message || "Registration failed");
+      throw err;
     }
   }, []);
 
-  // 🔹 Logout
+  /* ---------------- LOGOUT ---------------- */
   const logout = useCallback(() => {
-    authService.logout();
+    authService.logout(); // clears localStorage
     setUser(null);
     setError(null);
   }, []);
 
-  // 🔹 Memoized context value
+  /* ---------------- CONTEXT VALUE ---------------- */
   const value = useMemo(
     () => ({
       user,
       loading,
       error,
+      isAuthenticated: !!user?.token, // ✅ VERY IMPORTANT
       login,
       register,
       logout,

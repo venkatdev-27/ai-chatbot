@@ -4,180 +4,158 @@ import ChatInput from "../components/chat/ChatInput";
 import ChatSidebar from "../components/chat/Sidebar";
 import chatService from "../services/chatService";
 import AuthContext from "../context/AuthContext";
-import io from "socket.io-client";
+import { io } from "socket.io-client";
+
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
+const API_URL = import.meta.env.VITE_API_URL;
 
 const Chat = () => {
   const { user } = useContext(AuthContext);
   const token = user?.token;
+
   const [messages, setMessages] = useState([]);
   const [socket, setSocket] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
 
   const messagesEndRef = useRef(null);
 
-  // 🔹 Initialize Socket & Load Conversations
+  /* ---------------- SOCKET INIT ---------------- */
   useEffect(() => {
-    if (!token) return;
+    if (!token || !SOCKET_URL) return;
 
-    const newSocket = io("http://localhost:5000", {
+    const s = io(SOCKET_URL, {
       auth: { token },
+      transports: ["websocket"],
     });
 
-    setSocket(newSocket);
+    s.on("connect", () => {
+      console.log("✅ Socket connected:", s.id);
+    });
 
-    // Load conversations
+    s.on("connect_error", (err) => {
+      console.error("❌ Socket error:", err.message);
+    });
+
+    setSocket(s);
     loadConversations();
 
-    return () => newSocket.close();
+    return () => {
+      s.removeAllListeners();
+      s.disconnect();
+    };
   }, [token]);
 
-  // 🔹 Load Conversations
+  /* ---------------- LOAD CONVERSATIONS ---------------- */
   const loadConversations = async () => {
     try {
       const data = await chatService.getConversations();
       setConversations(data);
-      if (data.length > 0) {
-        // Select most recent conversation unless we want to start blank?
-        // Let's select the first one by default for now
-        setActiveConversationId(data[0]._id);
-      } else {
-        // No conversations, start fresh state (activeId null)
-        setActiveConversationId(null);
-      }
-    } catch (error) {
-      console.error("Failed to load conversations", error);
+      setActiveConversationId(data?.[0]?._id || null);
+    } catch (e) {
+      console.error("Failed to load conversations", e);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔹 Join Conversation Room & Load Messages
+  /* ---------------- JOIN ROOM + LOAD MESSAGES ---------------- */
   useEffect(() => {
     if (!socket || !activeConversationId) {
-      if (!activeConversationId) setMessages([]); // Clear messages if no chat selected
+      setMessages([]);
       return;
     }
 
-    // Join room
     socket.emit("join", activeConversationId);
 
-    // Load messages for this conversation
-    const fetchMessages = async () => {
-      try {
-        const history = await chatService.getMessages(activeConversationId);
-        setMessages(history);
-      } catch (error) {
-        console.error("Failed to load messages", error);
+    chatService
+      .getMessages(activeConversationId)
+      .then(setMessages)
+      .catch(console.error);
+
+    const handleReceive = (msg) => {
+      if (String(msg.conversationId) === String(activeConversationId)) {
+        setMessages((prev) => [...prev, msg]);
       }
     };
 
-    fetchMessages();
-
-    // Listen for new messages
-    const handleReceiveMessage = (newMessage) => {
-      // Only append if it belongs to this conversation (double check)
-      if (newMessage.conversationId === activeConversationId) {
-        setMessages((prev) => [...prev, newMessage]);
-
-        // Also update sidebar sort order?
-        // Re-fetch conversations to update order or manually move active to top?
-        // Simple approach: reload conversations to update 'lastMessageAt'
-        loadConversations();
-      }
-    };
-
-    socket.on("receiveMessage", handleReceiveMessage);
-
-    // Typing indicators could be handled here too (scoped to room)
+    socket.on("receiveMessage", handleReceive);
+    socket.on("typing", () => setIsTyping(true));
+    socket.on("stopTyping", () => setIsTyping(false));
 
     return () => {
       socket.emit("leave", activeConversationId);
-      socket.off("receiveMessage", handleReceiveMessage);
+      socket.off("receiveMessage", handleReceive);
+      socket.off("typing");
+      socket.off("stopTyping");
     };
   }, [socket, activeConversationId]);
 
-  // 🔹 Create New Chat
-  const handleNewChat = async () => {
-    try {
-      const newConv = await chatService.createConversation("New Chat");
-      setConversations([newConv, ...conversations]);
-      setActiveConversationId(newConv._id);
-    } catch (err) {
-      console.error("Failed to create chat", err);
-    }
-  };
+  /* ---------------- SEND MESSAGE ---------------- */
+  const handleSendMessage = async (text, file) => {
+    if (!socket || !activeConversationId || !text.trim()) return;
 
-  // 🔹 Delete Conversation
-  const handleDeleteConversation = async (id) => {
-    try {
-      await chatService.deleteConversation(id);
-      const updated = conversations.filter(c => c._id !== id);
-      setConversations(updated);
-      if (activeConversationId === id) {
-        setActiveConversationId(updated.length > 0 ? updated[0]._id : null);
-      }
-    } catch (err) {
-      console.error("Failed to delete", err);
-    }
-  };
+    let mediaUrl = null;
+    let type = "text";
 
-  // 🔹 Send Message
-  const handleSendMessage = (text, file) => {
-    if (!socket || !activeConversationId) return;
-
-    // Optimistic UI update? Or wait for socket? Socket is fast.
-    // We need to upload file first if exists
-    // The previous logic for file upload needs to be integrated here or inside sendMessage?
-    // chatService.sendMessage logic handles HTTP.
-    // socket.emit('sendMessage') handles socket.
-
-    // If file, upload first to get URL
-    // We need to implement file upload inside this function before emitting socket event
-
-    // For now, let's assume ChatInput passes file object.
-    const send = async () => {
-      let mediaUrl = null;
-      let type = 'text';
-
-      if (file) {
+    if (file) {
+      try {
         const formData = new FormData();
         formData.append("file", file);
-        try {
-          // api.post('/upload') - we need to import api or use a service
-          // Let's use fetch or axios directly or add uploadService
-          // Assuming we can use internal helper or just replicate logic
-          // Better: create uploadService or just use fetch here with token
-          const token = localStorage.getItem("token"); // direct access or from context
-          const res = await fetch("http://localhost:5000/api/upload", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` }, // Verify header format
-            body: formData
-          });
-          const data = await res.json();
-          mediaUrl = data.url;
-          type = data.type; // image or video
-        } catch (e) {
-          console.error("Upload failed", e);
-          return;
-        }
+
+        const res = await fetch(`${API_URL}/api/upload`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        const data = await res.json();
+        mediaUrl = data.url;
+        type = data.type;
+      } catch (e) {
+        console.error("Upload failed", e);
+        return;
       }
+    }
 
-      socket.emit("sendMessage", {
-        senderId: user._id,
-        content: text,
-        type,
-        mediaUrl,
-        conversationId: activeConversationId
-      });
-    };
-
-    send();
+    socket.emit("sendMessage", {
+      senderId: user._id,
+      content: text,
+      type,
+      mediaUrl,
+      conversationId: activeConversationId,
+    });
   };
 
-  // Auto-scroll
+  /* ---------------- DELETE CONVERSATION ---------------- */
+  const handleDeleteConversation = async (id) => {
+    if (!id) return;
+
+    try {
+      await chatService.deleteConversation(id);
+      const updated = conversations.filter((c) => c._id !== id);
+      setConversations(updated);
+      setActiveConversationId(updated[0]?._id || null);
+    } catch (e) {
+      console.error("Delete failed", e);
+    }
+  };
+
+  /* ---------------- TYPING ---------------- */
+  const handleTyping = () => {
+    socket?.emit("typing", activeConversationId);
+  };
+
+  const handleStopTyping = () => {
+    socket?.emit("stopTyping", activeConversationId);
+  };
+
+  /* ---------------- AUTO SCROLL ---------------- */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -188,40 +166,34 @@ const Chat = () => {
         conversations={conversations}
         activeId={activeConversationId}
         onSelectConversation={setActiveConversationId}
-        onNewChat={handleNewChat}
         onDeleteConversation={handleDeleteConversation}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col h-full relative">
-        {/* Mobile Header */}
-        <div className="md:hidden p-4 border-b border-dark-border flex items-center gap-3">
-          <button onClick={() => setSidebarOpen(true)} className="text-white">
-            ☰
-          </button>
-          <span className="font-bold text-white">Voo AI</span>
-        </div>
-
-        {/* Chat Area */}
-        <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 flex flex-col">
+        <div className="flex-1 overflow-hidden">
           {activeConversationId ? (
             <ChatWindow messages={messages} currentUser={user} />
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-text-secondary">
-              <p className="text-xl">Select a conversation or start a new one</p>
-              <button onClick={handleNewChat} className="mt-4 text-primary hover:underline">
-                Start New Chat
-              </button>
+            <div className="flex items-center justify-center h-full text-gray-400">
+              Start a new chat
             </div>
           )}
           <div ref={messagesEndRef} />
+          {isTyping && (
+            <div className="px-4 text-sm italic text-gray-400">
+              AI is typing…
+            </div>
+          )}
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 bg-dark-bg/95 backdrop-blur border-t border-dark-border">
-          <ChatInput onSendMessage={handleSendMessage} disabled={!activeConversationId} />
-        </div>
+        <ChatInput
+          onSendMessage={handleSendMessage}
+          disabled={!activeConversationId}
+          onTyping={handleTyping}
+          onStopTyping={handleStopTyping}
+        />
       </div>
     </div>
   );

@@ -9,38 +9,36 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
 
+    // 🔹 Sender (null for AI messages)
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
     },
 
-    // 🔹 Who sent the message
+    // 🔹 Message role
     role: {
       type: String,
-      enum: ["user", "ai"],
+      enum: ["user", "model"], // ✅ FIXED
       default: "user",
     },
 
+    // 🔹 Message content
     content: {
       type: String,
       trim: true,
-      default: ""
+      required: true,
     },
 
+    // 🔹 Message type
     type: {
       type: String,
       enum: ["text", "image", "video"],
       default: "text",
     },
 
+    // 🔹 Media URL (optional)
     mediaUrl: {
-      type: String,
-      default: null,
-    },
-
-    // 🔹 Store AI-generated reply (if any)
-    aiReply: {
       type: String,
       default: null,
     },

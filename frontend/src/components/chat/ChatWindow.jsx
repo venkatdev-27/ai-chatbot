@@ -4,22 +4,24 @@ import MessageBubble from "./MessageBubble";
 const ChatWindow = ({ messages = [], currentUser }) => {
   const messagesEndRef = useRef(null);
 
-  // 🔹 Smooth auto-scroll
+  /* ---------------- AUTO SCROLL ---------------- */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 🔹 Helper: check message ownership safely
+  /* ---------------- MESSAGE OWNERSHIP ---------------- */
   const isOwnMessage = (msg) => {
     if (!currentUser?._id) return false;
-    if (msg.role === "ai") return false; // 🔹 AI messages always on the left
+
+    // AI messages always on the left
+    if (msg.role === "ai") return false;
 
     const senderId =
       typeof msg.sender === "string"
         ? msg.sender
         : msg.sender?._id;
 
-    return senderId === currentUser._id;
+    return String(senderId) === String(currentUser._id);
   };
 
   return (
@@ -27,19 +29,19 @@ const ChatWindow = ({ messages = [], currentUser }) => {
       {messages.length === 0 ? (
         <div className="h-full flex flex-col justify-center items-center text-text-secondary opacity-50">
           <div className="text-4xl mb-4">💬</div>
-          <p>Start a conversation with Voo AI or your friends!</p>
+          <p>Start a conversation with Voo AI</p>
         </div>
       ) : (
-        messages.map((msg) => (
+        messages.map((msg, index) => (
           <MessageBubble
-            key={msg._id}
+            key={msg._id || `${msg.role}-${index}`} // ✅ SAFE KEY
             message={msg}
             isOwn={isOwnMessage(msg)}
           />
         ))
       )}
 
-      {/* 🔹 Scroll anchor */}
+      {/* Scroll anchor */}
       <div ref={messagesEndRef} />
     </div>
   );

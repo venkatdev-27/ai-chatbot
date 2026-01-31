@@ -1,10 +1,12 @@
 import api from "./axiosInstance";
 
-// 🔹 Get User Conversations
+/* ---------------- CONVERSATIONS ---------------- */
+
+// 🔹 Get all conversations
 const getConversations = async () => {
   try {
-    const response = await api.get("/conversations");
-    return response.data;
+    const { data } = await api.get("/conversations");
+    return data;
   } catch (error) {
     throw new Error(
       error?.response?.data?.message || "Failed to fetch conversations"
@@ -12,11 +14,11 @@ const getConversations = async () => {
   }
 };
 
-// 🔹 Create Conversation
-const createConversation = async (title) => {
+// 🔹 Create conversation
+const createConversation = async (title = "New Chat") => {
   try {
-    const response = await api.post("/conversations", { title });
-    return response.data;
+    const { data } = await api.post("/conversations", { title });
+    return data;
   } catch (error) {
     throw new Error(
       error?.response?.data?.message || "Failed to create conversation"
@@ -24,15 +26,15 @@ const createConversation = async (title) => {
   }
 };
 
-// 🔹 Delete Conversation (SAFE)
-const deleteConversation = async (id) => {
-  if (!id) {
-    throw new Error("Conversation ID is missing");
+// 🔹 Delete conversation
+const deleteConversation = async (conversationId) => {
+  if (!conversationId) {
+    throw new Error("Conversation ID is required");
   }
 
   try {
-    const response = await api.delete(`/conversations/${id}`);
-    return response.data;
+    const { data } = await api.delete(`/conversations/${conversationId}`);
+    return data;
   } catch (error) {
     throw new Error(
       error?.response?.data?.message || "Failed to delete conversation"
@@ -40,17 +42,19 @@ const deleteConversation = async (id) => {
   }
 };
 
-// 🔹 Get Messages for Conversation
+/* ---------------- MESSAGES ---------------- */
+
+// 🔹 Get messages for a conversation
 const getMessages = async (conversationId) => {
   if (!conversationId) {
-    throw new Error("Conversation ID is missing");
+    throw new Error("Conversation ID is required");
   }
 
   try {
-    const response = await api.get(
+    const { data } = await api.get(
       `/conversations/${conversationId}/messages`
     );
-    return response.data;
+    return data;
   } catch (error) {
     throw new Error(
       error?.response?.data?.message || "Failed to fetch messages"
@@ -58,11 +62,15 @@ const getMessages = async (conversationId) => {
   }
 };
 
-// 🔹 Send a message
+// 🔹 Send message (REST fallback – optional if socket is primary)
 const sendMessage = async (messageData) => {
+  if (!messageData?.conversationId) {
+    throw new Error("Conversation ID is required");
+  }
+
   try {
-    const response = await api.post("/chat/messages", messageData);
-    return response.data;
+    const { data } = await api.post("/chat/messages", messageData);
+    return data;
   } catch (error) {
     throw new Error(
       error?.response?.data?.message || "Failed to send message"

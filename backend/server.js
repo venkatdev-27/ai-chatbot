@@ -33,6 +33,8 @@ const startServer = async () => {
       },
     });
 
+    console.log("🔹 Socket.io initialized with CORS origin:", CLIENT_URL);
+
     // 🔹 Socket connections
     io.on("connection", (socket) => {
       console.log("🟢 Client connected:", socket.id);

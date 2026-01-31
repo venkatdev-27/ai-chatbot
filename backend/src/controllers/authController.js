@@ -1,106 +1,110 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 
+/* =========================
+   🔹 Generate JWT Token
+========================= */
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "30d",
-  });
+  return jwt.sign(
+    { id },
+    process.env.JWT_SECRET,
+    { expiresIn: "30d" }
+  );
 };
 
-// =========================
-// @desc    Register new user
-// @route   POST /api/auth/register
-// @access  Public
-// =========================
+/* =========================
+   🔹 Register User
+   POST /api/auth/register
+========================= */
 const registerUser = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // 🔹 Validation
+    // ✅ Basic validation
     if (!username || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 🔹 Check email
-    const emailExists = await User.findOne({ email });
-    if (emailExists) {
-      return res.status(400).json({ message: "Email already registered" });
+    // ✅ Normalize email
+    const normalizedEmail = email.toLowerCase();
+
+    // ✅ Check duplicates
+    const existingUser = await User.findOne({
+      $or: [{ email: normalizedEmail }, { username }],
+    });
+
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: "Email or username already exists" });
     }
 
-    // 🔹 Check username
-    const usernameExists = await User.findOne({ username });
-    if (usernameExists) {
-      return res.status(400).json({ message: "Username already taken" });
-    }
-
-    // 🔹 Create user
+    // ✅ Create user (password hashed in model)
     const user = await User.create({
       username,
-      email,
+      email: normalizedEmail,
       password,
     });
 
+    // ✅ Response
     res.status(201).json({
       _id: user._id,
       username: user.username,
       email: user.email,
-      profilePic: user.profilePic,
+      profilePic: user.profilePic || null,
       token: generateToken(user._id),
     });
   } catch (error) {
     console.error("Register Error:", error);
 
-    // 🔹 Handle Mongo duplicate key error (safety net)
-    if (error.code === 11000) {
-      return res.status(400).json({
-        message: "Email or username already exists",
-      });
-    }
-
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({
+      message: "Registration failed. Please try again.",
+    });
   }
 };
 
-// =========================
-// @desc    Authenticate user
-// @route   POST /api/auth/login
-// @access  Public
-// =========================
+/* =========================
+   🔹 Login User
+   POST /api/auth/login
+========================= */
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 🔹 Validation
+    // ✅ Validation
     if (!email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 🔹 Find user
-    const user = await User.findOne({ email });
-    
-    if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" });
+    const normalizedEmail = email.toLowerCase();
+
+    // ✅ Find user
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user || !(await user.matchPassword(password))) {
+      return res
+        .status(401)
+        .json({ message: "Invalid email or password" });
     }
 
-    // 🔹 Verify password
-    const isPasswordValid = await user.matchPassword(password);
-    
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
-
-    // 🔹 Generate token and return user data
-    res.json({
+    // ✅ Success
+    res.status(200).json({
       _id: user._id,
       username: user.username,
       email: user.email,
-      profilePic: user.profilePic,
+      profilePic: user.profilePic || null,
       token: generateToken(user._id),
     });
   } catch (error) {
     console.error("Login Error:", error);
-    res.status(500).json({ message: "Server error" });
+
+    res.status(500).json({
+      message: "Login failed. Please try again.",
+    });
   }
 };
 
-module.exports = { registerUser, loginUser };
+module.exports = {
+  registerUser,
+  loginUser,
+};

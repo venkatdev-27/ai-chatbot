@@ -3,101 +3,101 @@ const Conversation = require('../models/Conversation');
 const { generateAIResponse } = require('../services/aiService');
 
 module.exports = (io, socket) => {
-    
-    // 🔹 Join Conversation Room
-    socket.on('join', (conversationId) => {
-        if (conversationId) {
-            socket.join(conversationId);
-            console.log(`Socket ${socket.id} joined conversation ${conversationId}`);
-        }
-    });
 
-    // 🔹 Leave Conversation Room
-    socket.on('leave', (conversationId) => {
-        if (conversationId) {
-            socket.leave(conversationId);
-            console.log(`Socket ${socket.id} left conversation ${conversationId}`);
-        }
-    });
+  // 🔹 Join Conversation Room
+  socket.on('join', (conversationId) => {
+    if (conversationId) {
+      socket.join(conversationId);
+      console.log(`Socket ${socket.id} joined conversation ${conversationId}`);
+    }
+  });
 
-    // 🔹 Handle Send Message
-    socket.on('sendMessage', async (data) => {
-        const { senderId, content, type, conversationId, mediaUrl } = data;
+  // 🔹 Leave Conversation Room
+  socket.on('leave', (conversationId) => {
+    if (conversationId) {
+      socket.leave(conversationId);
+      console.log(`Socket ${socket.id} left conversation ${conversationId}`);
+    }
+  });
 
-        if (!conversationId) {
-            console.error("Missing conversationId in sendMessage");
-            return;
-        }
+  // 🔹 Handle Send Message
+  socket.on('sendMessage', async (data) => {
+    const { senderId, content, type, conversationId, mediaUrl } = data;
 
-        try {
-            // 1. Save User Message
-            const userMessage = await Message.create({
-                sender: senderId,
-                content,
-                type: type || 'text',
-                mediaUrl: mediaUrl || null,
-                conversationId: conversationId
-            });
+    if (!conversationId || !content) {
+      console.error("Missing conversationId or content in sendMessage");
+      return;
+    }
 
-            const populatedUserMessage = await userMessage.populate('sender', 'username avatar');
+    try {
+      // 1️⃣ Save USER message
+      const userMessage = await Message.create({
+        sender: senderId,
+        role: 'user',
+        content,
+        type: type || 'text',
+        mediaUrl: mediaUrl || null,
+        conversationId
+      });
 
-            // 2. Broadcast User Message to Room
-            io.to(conversationId).emit('receiveMessage', populatedUserMessage);
-            
-            // 3. Update Conversation Last Message
-            await Conversation.findByIdAndUpdate(conversationId, { lastMessageAt: new Date() });
+      const populatedUserMessage = await userMessage.populate(
+        'sender',
+        'username avatar'
+      );
 
-            // 4. Generate AI Response
-            // Correctly calling aiService which expects an object { text, filePath, mimeType }
-            
-            // Construct local file path from mediaUrl if needed (TODO: Implement media handling logic here)
-            // For now, passing text content.
-            
-            const aiResponseText = await generateAIResponse({ text: content });
+      // 2️⃣ Broadcast USER message
+      io.to(conversationId).emit('receiveMessage', populatedUserMessage);
 
-            // 5. Save AI Message
-            const aiMessage = await Message.create({
-                sender: senderId, // Or a dedicated AI ID? Usually AI logic handles this. 
-                // Wait, Message model 'sender' is a User. 
-                // Does the AI have a User ID? Or is 'sender' optional?
-                // The schema says sender is Object ID ref User, required.
-                // We typically use the user's ID but set role to 'model'.
-                // Or we have a predefined AI user.
-                // Let's assume we use the user's ID but different role for now, or the Schema allows 'role' usage.
-                
-                // Correction: The Message model has `role: { type: String, enum: ['user', 'model'], default: 'user' }`
-                // So we can use the same `sender` (the user who owns the chat) but `role: 'model'`.
-                // This indicates "The AI talking to this user".
-                
-                sender: senderId, 
-                role: 'ai',
-                content: aiResponseText,
-                conversationId: conversationId
-            });
+      // 3️⃣ Update conversation timestamp
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessageAt: new Date()
+      });
 
-             const populatedAiMessage = await aiMessage.populate('sender', 'username avatar');
+      // 4️⃣ Generate AI response
+      const aiResponseText = await generateAIResponse({ text: content });
 
-            // 6. Broadcast AI Message
-            io.to(conversationId).emit('receiveMessage', populatedAiMessage);
+      // 5️⃣ Save AI message (FIXED ROLE)
+      const aiMessage = await Message.create({
+        sender: senderId,     // OK for now
+        role: 'model',        // ✅ FIXED
+        content: aiResponseText,
+        conversationId
+      });
 
-        } catch (error) {
-            console.error('Socket Error:', error);
-            
-            // Check for rate limit
-            if (error.status === 429 || error.message?.includes('429')) {
-                 socket.emit('errorMessage', { message: "AI is busy (Rate Limit). Please wait a moment." });
-            } else {
-                 socket.emit('errorMessage', { message: "Failed to generate AI response." });
-            }
-        }
-    });
+      const populatedAiMessage = await aiMessage.populate(
+        'sender',
+        'username avatar'
+      );
 
-    // 🔹 Typing Indicators
-    socket.on('typing', (conversationId) => {
-        socket.to(conversationId).emit('typing');
-    });
+      // 6️⃣ Broadcast AI message
+      io.to(conversationId).emit('receiveMessage', populatedAiMessage);
 
-    socket.on('stopTyping', (conversationId) => {
-        socket.to(conversationId).emit('stopTyping');
-    });
+    } catch (error) {
+      console.error('Socket Error:', error);
+
+      // ✅ Handle Gemini overload properly
+      if (
+        error.status === 429 ||
+        error.status === 503 ||
+        error.message?.includes('overloaded')
+      ) {
+        socket.emit('errorMessage', {
+          message: "AI is busy right now. Please try again in a moment."
+        });
+      } else {
+        socket.emit('errorMessage', {
+          message: "Failed to generate AI response."
+        });
+      }
+    }
+  });
+
+  // 🔹 Typing Indicators
+  socket.on('typing', (conversationId) => {
+    socket.to(conversationId).emit('typing');
+  });
+
+  socket.on('stopTyping', (conversationId) => {
+    socket.to(conversationId).emit('stopTyping');
+  });
 };

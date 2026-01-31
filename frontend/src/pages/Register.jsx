@@ -3,25 +3,40 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthContext from "../context/AuthContext";
 
 const Register = () => {
+  const navigate = useNavigate();
+  const { register, loading } = useContext(AuthContext);
+
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
   });
 
-  const { register, loading } = useContext(AuthContext);
-  const navigate = useNavigate();
   const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    setError(""); // ✅ clear error on typing
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     setError("");
 
     try {
-      await register(formData);
+      await register({
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+
       navigate("/chat");
     } catch (err) {
-      // ✅ Safe error handling
       setError(err?.message || "Registration failed");
     }
   };
@@ -42,51 +57,52 @@ const Register = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
+          {/* Username */}
           <div className="mb-4">
             <label className="block text-sm text-text-secondary mb-2">
               Username
             </label>
             <input
+              name="username"
               type="text"
-              placeholder="Choose a username"
               value={formData.username}
-              onChange={(e) =>
-                setFormData({ ...formData, username: e.target.value })
-              }
+              onChange={handleChange}
+              placeholder="Choose a username"
               required
               className="w-full p-3 rounded-lg bg-dark-input border border-dark-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
+          {/* Email */}
           <div className="mb-4">
             <label className="block text-sm text-text-secondary mb-2">
               Email
             </label>
             <input
+              name="email"
               type="email"
-              placeholder="Enter your email"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              onChange={handleChange}
+              placeholder="Enter your email"
               required
               className="w-full p-3 rounded-lg bg-dark-input border border-dark-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
-          <div className="mb-4">
+          {/* Password */}
+          <div className="mb-6">
             <label className="block text-sm text-text-secondary mb-2">
               Password
             </label>
             <input
+              name="password"
               type="password"
-              placeholder="Create a password"
               value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
+              onChange={handleChange}
+              placeholder="Create a password"
               required
+              minLength={6}
               className="w-full p-3 rounded-lg bg-dark-input border border-dark-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -94,7 +110,7 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-primary hover:bg-primary-hover disabled:opacity-60 text-white rounded-lg font-semibold transition-colors duration-200"
+            className="w-full py-3 bg-primary hover:bg-primary-hover disabled:opacity-60 text-white rounded-lg font-semibold transition-colors"
           >
             {loading ? "Creating account..." : "Register"}
           </button>

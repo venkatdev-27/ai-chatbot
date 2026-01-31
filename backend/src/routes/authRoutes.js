@@ -1,23 +1,20 @@
 const express = require("express");
 const { registerUser, loginUser } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
-const User = require("../models/User");
 
 const router = express.Router();
 
-// 🔹 Register
+/* ---------------- AUTH ROUTES ---------------- */
+
+// 🔹 Register user
 router.post("/register", registerUser);
 
-// 🔹 Login
+// 🔹 Login user
 router.post("/login", loginUser);
 
-// 🔹 Get current user
-router.get("/me", protect, async (req, res) => {
-  try {
-    res.status(200).json(req.user); // already attached by protect
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+// 🔹 Get current logged-in user
+router.get("/me", protect, (req, res) => {
+  res.status(200).json(req.user);
 });
 
 module.exports = router;

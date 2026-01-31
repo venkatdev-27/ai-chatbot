@@ -1,8 +1,11 @@
-import { useState } from "react";
 
-const ChatInput = ({ onSendMessage, disabled }) => {
+
+import { useState, useRef } from "react";
+
+const ChatInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -10,6 +13,10 @@ const ChatInput = ({ onSendMessage, disabled }) => {
     const trimmedMessage = message.trim();
 
     if (!trimmedMessage) return;
+
+    // Clear typing indicator immediately on send
+    if (onStopTyping) onStopTyping();
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     try {
       setSending(true);
@@ -30,7 +37,18 @@ const ChatInput = ({ onSendMessage, disabled }) => {
           type="text"
           placeholder={disabled ? "Select a chat to start messaging..." : "Type a message..."}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+
+            if (!disabled && onTyping && onStopTyping) {
+              onTyping();
+
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => {
+                onStopTyping();
+              }, 2000);
+            }
+          }}
           disabled={disabled}
           className="flex-1 bg-transparent border-none text-text-primary px-2 py-1 focus:outline-none placeholder-text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         />
