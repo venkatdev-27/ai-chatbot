@@ -132,6 +132,17 @@ const Chat = () => {
     });
   };
 
+  /* ---------------- NEW CHAT ---------------- */
+  const handleNewChat = async () => {
+    try {
+      const newConv = await chatService.createConversation("New Chat");
+      setConversations([newConv, ...conversations]);
+      setActiveConversationId(newConv._id);
+    } catch (e) {
+      console.error("Failed to create chat", e);
+    }
+  };
+
   /* ---------------- DELETE CONVERSATION ---------------- */
   const handleDeleteConversation = async (id) => {
     if (!id) return;
@@ -166,18 +177,38 @@ const Chat = () => {
         conversations={conversations}
         activeId={activeConversationId}
         onSelectConversation={setActiveConversationId}
+        onNewChat={handleNewChat}
         onDeleteConversation={handleDeleteConversation}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-hidden">
+      <div className="flex-1 flex flex-col relative w-full h-full">
+        {/* Mobile Header */}
+        <div className="md:hidden p-4 border-b border-white/10 flex items-center gap-3 bg-black/50 backdrop-blur z-10">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-white p-1 hover:bg-white/10 rounded-md transition-colors"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 12h18M3 6h18M3 18h18" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <span className="font-bold text-white tracking-wide">Voo AI</span>
+        </div>
+
+        <div className="flex-1 overflow-hidden relative">
           {activeConversationId ? (
             <ChatWindow messages={messages} currentUser={user} />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400">
-              Start a new chat
+            <div className="flex flex-col items-center justify-center h-full text-text-secondary">
+              <p className="text-xl mb-4">Select a conversation or start a new one</p>
+              <button
+                onClick={handleNewChat}
+                className="px-6 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors"
+              >
+                Start New Chat
+              </button>
             </div>
           )}
           <div ref={messagesEndRef} />
