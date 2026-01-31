@@ -67,7 +67,7 @@ Start the backend server:
 npm run dev
 # or
 node server.js
-or 
+#or
 nodemon server.js
 ```
 
