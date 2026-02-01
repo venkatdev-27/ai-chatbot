@@ -7,12 +7,14 @@ const app = express();
    🔹 ALLOWED ORIGINS
 ========================= */
 const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5175",
-  "http://localhost:3000",
-  "https://ai-chatbot-mern-6ph8.onrender.com",
-  "https://your-frontend-domain.onrender.com",
+  "http://localhost:5173",                  // local Vite
+  "http://localhost:5175",                  // local alt port
+  "http://localhost:3000",                  // CRA
+  "https://vooc-ai.onrender.com",            // ✅ ADD REAL FRONTEND
 ];
+
+
+const CLIENT_URL = process.env.CLIENT_URL;
 
 /* =========================
    🔹 CORS CONFIG (MULTI ORIGIN)
@@ -20,24 +22,23 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow Postman / curl / server-to-server
+      // ✅ Allow Postman, curl, server-to-server
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
-      } else {
-        return callback(
-          new Error(`CORS blocked for origin: ${origin}`)
-        );
       }
+
+      console.error("❌ CORS blocked:", origin);
+      return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization"],   
   })
 );
 
-// 🔹 Preflight (important)
+// ✅ VERY IMPORTANT FOR RENDER / BROWSERS
 app.options("*", cors());
 
 /* =========================

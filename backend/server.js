@@ -11,7 +11,7 @@ const chatSocket = require("./src/sockets/chatSocket");
 
 // 🔹 Environment
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const CLIENT_URL = process.env.CLIENT_URL || "";
 
 let server; // for graceful shutdown
 
