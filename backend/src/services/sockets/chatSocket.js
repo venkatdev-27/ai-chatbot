@@ -51,7 +51,10 @@ const chatSocket = (io, socket) => {
         lastMessageAt: new Date(),
       });
 
-      /* 4️⃣ Generate AI reply */
+      /* 4️⃣ Emit Typing Indicator */
+      socket.broadcast.to(conversationId).emit("typing", conversationId);
+
+      /* 5️⃣ Generate AI reply */
       let aiReplyText;
       try {
         aiReplyText = await generateAIResponse({ text: content });
@@ -60,10 +63,14 @@ const chatSocket = (io, socket) => {
         socket.emit("errorMessage", {
           message: "AI is temporarily unavailable. Try again later.",
         });
+        socket.broadcast.to(conversationId).emit("stopTyping", conversationId);
         return;
       }
 
-      /* 5️⃣ Save AI message */
+      /* 6️⃣ Stop Typing Indicator */
+      socket.broadcast.to(conversationId).emit("stopTyping", conversationId);
+
+      /* 7️⃣ Save AI message */
       const aiMessage = await Message.create({
         sender: senderId, // keep same user context
         role: "ai",
@@ -76,7 +83,7 @@ const chatSocket = (io, socket) => {
         "username avatar"
       );
 
-      /* 6️⃣ Emit AI message */
+      /* 8️⃣ Emit AI message */
       io.to(conversationId).emit("receiveMessage", populatedAiMessage);
 
     } catch (error) {
