@@ -172,7 +172,7 @@ const Chat = () => {
   }, [messages]);
 
   return (
-    <div className="flex h-screen bg-dark-bg overflow-hidden">
+    <div className="fixed inset-0 h-[100dvh] bg-dark-bg overflow-hidden overscroll-none flex">
       <ChatSidebar
         conversations={conversations}
         activeId={activeConversationId}
@@ -183,9 +183,9 @@ const Chat = () => {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col relative w-full h-full">
+      <div className="flex-1 flex flex-col relative w-full h-full min-w-0">
         {/* Mobile Header */}
-        <div className="md:hidden p-4 border-b border-white/10 flex items-center gap-3 bg-black/50 backdrop-blur z-10">
+        <div className="md:hidden p-4 border-b border-white/10 flex items-center gap-3 bg-black/50 backdrop-blur-md z-20 shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="text-white p-1 hover:bg-white/10 rounded-md transition-colors"
@@ -197,12 +197,14 @@ const Chat = () => {
           <span className="font-bold text-white tracking-wide">Voo AI</span>
         </div>
 
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden relative flex flex-col">
           {activeConversationId ? (
-            <ChatWindow messages={messages} currentUser={user} />
+            <div className="flex-1 overflow-hidden relative">
+              <ChatWindow messages={messages} currentUser={user} />
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-text-secondary">
-              <p className="text-xl mb-4">Select a conversation or start a new one</p>
+            <div className="flex-1 flex flex-col items-center justify-center h-full text-text-secondary overflow-y-auto">
+              <p className="text-xl mb-4 text-center px-4">Select a conversation or start a new one</p>
               <button
                 onClick={handleNewChat}
                 className="px-6 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors"
@@ -213,18 +215,20 @@ const Chat = () => {
           )}
           <div ref={messagesEndRef} />
           {isTyping && (
-            <div className="px-4 text-sm italic text-gray-400">
+            <div className="px-4 py-2 text-sm italic text-gray-400 absolute bottom-0 left-0 w-full bg-gradient-to-t from-dark-bg to-transparent">
               AI is typing…
             </div>
           )}
         </div>
 
-        <ChatInput
-          onSendMessage={handleSendMessage}
-          disabled={!activeConversationId}
-          onTyping={handleTyping}
-          onStopTyping={handleStopTyping}
-        />
+        <div className="shrink-0 z-20 bg-dark-bg p-2 md:p-4">
+          <ChatInput
+            onSendMessage={handleSendMessage}
+            disabled={!activeConversationId}
+            onTyping={handleTyping}
+            onStopTyping={handleStopTyping}
+          />
+        </div>
       </div>
     </div>
   );
