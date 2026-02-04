@@ -58,7 +58,7 @@ const ChatSidebar = ({
                     </div>
 
                     {/* Conversations */}
-                    <div className="flex-1 overflow-y-auto px-2 space-y-1 scrollbar-hide">
+                    <div className="flex-1 overflow-y-auto px-2 space-y-1 scrollbar-hide scroll-smooth">
                         <div className="px-2 py-2 text-xs text-text-secondary uppercase">
                             Recent
                         </div>
@@ -82,7 +82,7 @@ const ChatSidebar = ({
                                         }
                   `}
                                 >
-                                    <p className="truncate text-sm font-medium pr-6">
+                                    <p className="truncate text-sm font-medium pr-10">
                                         {conv.title || "New Chat"}
                                     </p>
                                     <p className="text-[10px] opacity-60">
@@ -97,11 +97,16 @@ const ChatSidebar = ({
                                             e.stopPropagation();
                                             onDeleteConversation?.(conv._id);
                                         }}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2
-                      text-text-secondary hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg 
+                      text-text-secondary hover:text-danger hover:bg-danger/10 
+                      opacity-100 transition-all z-10"
                                         title="Delete Chat"
                                     >
-                                        🗑
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M3 6h18"></path>
+                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                        </svg>
                                     </button>
 
                                     {activeId === conv._id && (
